@@ -12,6 +12,9 @@ var source = require('vinyl-source-stream');
 var gutil = require('gulp-util');
 var babelify = require('babelify');
 var reactify = require('reactify');
+var notify = require('gulp-notify');
+var concat = require('gulp-concat');
+var sass = require('gulp-sass');
 
 // External dependencies you do not want to rebundle while developing,
 // but include in your application deployment
@@ -36,7 +39,12 @@ gulp.task('deploy', function(){
 // It will start watching for changes in every .js file.
 // If there's a change, the task 'scripts' defined above will fire.
 gulp.task('default', function() {
-	gulp.watch(['./**/*.js','!./web/*.js'], ['scripts']);
+	gulp.watch(['./dev/js/**/*.js','!./web/*.js'], ['scripts']);
+	cssTask({
+    	development: true,
+    	src: './dev/sass/**/*.scss',
+    	dest: './web/css'
+  	});
 });
 
 // Private Functions
@@ -46,7 +54,7 @@ function bundleApp(isProduction) {
 	// Browserify will bundle all our js files together in to one and will let
 	// us use modules in the front end.
 	var appBundler = browserify({
-    	entries: 'app.js',
+    	entries: './dev/js/app.js',
     	debug: true
   	})
 
@@ -80,4 +88,31 @@ function bundleApp(isProduction) {
 	    .on('error',gutil.log)
 	    .pipe(source('bundle.js'))
 	    .pipe(gulp.dest('./web/js/'));
+}
+
+function cssTask (options) {
+    if (options.development) {
+      	var run = function () {
+	        console.log(arguments);
+	        var start = new Date();
+	        console.log('Building CSS bundle');
+	        gulp
+	        	.src(options.src)
+	          	.pipe(sass({errLogToConsole: true}))
+	          	.pipe(concat('main.css'))
+	          	.pipe(gulp.dest(options.dest))
+	          	.pipe(notify(function () {
+	            	console.log('CSS bundle built in ' + 
+	            		(Date.now() - start) + 'ms');
+	          	}));
+      	};
+    	run();
+    	gulp.watch(options.src, run);
+    } else {
+	    gulp
+	      	.src(options.src)
+	        .pipe(concat('main.css'))
+	        .pipe(cssmin())
+	        .pipe(gulp.dest(options.dest));   
+    }
 }
